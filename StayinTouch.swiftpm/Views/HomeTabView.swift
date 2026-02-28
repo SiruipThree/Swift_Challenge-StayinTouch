@@ -102,9 +102,8 @@ struct HomeTabView: View {
     @State private var showHealthDetail = false
     /// Frame of the visible TodayWidget — used for the two tap overlays.
     @State private var todayWidgetFrame: CGRect = .zero
-    /// Controls the Today post detail sheet (viewing a specific post).
-    @State private var showTodayDetailSheet = false
-    /// Post to show in the detail sheet.
+    /// Post to show in the detail sheet. Non-nil = sheet is presented; nil = dismissed.
+    /// Using sheet(item:) ensures the sheet only ever opens with valid post data.
     @State private var todayDetailPost: TodayPost? = nil
 
     var body: some View {
@@ -437,10 +436,7 @@ struct HomeTabView: View {
                     if hasSelectedContact {
                         // Contact: full widget → view detail
                         Button {
-                            if let post = viewModel.selectedTodayPosts.first {
-                                todayDetailPost = post
-                                showTodayDetailSheet = true
-                            }
+                            todayDetailPost = viewModel.selectedTodayPosts.first
                         } label: {
                             Color.white.opacity(0.001)
                                 .frame(width: todayWidgetFrame.width,
@@ -465,10 +461,7 @@ struct HomeTabView: View {
 
                         // Overview upper: tap to view MY Today post detail
                         Button {
-                            if let post = viewModel.myTodayPosts.first {
-                                todayDetailPost = post
-                                showTodayDetailSheet = true
-                            }
+                            todayDetailPost = viewModel.myTodayPosts.first
                         } label: {
                             Color.white.opacity(0.001)
                                 .frame(width: todayWidgetFrame.width, height: upperH)
@@ -572,22 +565,20 @@ struct HomeTabView: View {
                     viewModel.addMyTodayPost(post)
                 }
             }
-            .sheet(isPresented: $showTodayDetailSheet) {
-                if let post = todayDetailPost {
-                    TodayDetailView(
-                        post: post,
-                        onReaction: { viewModel.addReaction($0, to: $1) },
-                        isMyPost: post.userId == "me",
-                        initialSentNotes: viewModel.notes(for: post),
-                        onNoteSent: { viewModel.addNote($0, to: post) },
-                        onDelete: post.userId == "me" ? {
-                            viewModel.deleteMyTodayPost(post)
-                        } : nil
-                    )
-                    .presentationDetents([.medium, .large])
-                    .presentationBackground(.ultraThinMaterial)
-                    .presentationCornerRadius(28)
-                }
+            .sheet(item: $todayDetailPost) { post in
+                TodayDetailView(
+                    post: post,
+                    onReaction: { viewModel.addReaction($0, to: $1) },
+                    isMyPost: post.userId == "me",
+                    initialSentNotes: viewModel.notes(for: post),
+                    onNoteSent: { viewModel.addNote($0, to: post) },
+                    onDelete: post.userId == "me" ? {
+                        viewModel.deleteMyTodayPost(post)
+                    } : nil
+                )
+                .presentationDetents([.medium, .large])
+                .presentationBackground(.ultraThinMaterial)
+                .presentationCornerRadius(28)
             }
             .onChange(of: viewModel.selectedContact.id) { _, _ in
                 guard hasSelectedContact else { return }
