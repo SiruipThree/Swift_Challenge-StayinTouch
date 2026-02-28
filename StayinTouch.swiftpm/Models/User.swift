@@ -1,18 +1,15 @@
 import Foundation
+import CoreLocation
 
 struct Coordinate: Equatable {
     let latitude: Double
     let longitude: Double
     
     func distanceInMiles(to other: Coordinate) -> Int {
-        let R = 3958.8 // Earth radius in miles
-        let dLat = (other.latitude - latitude) * .pi / 180
-        let dLon = (other.longitude - longitude) * .pi / 180
-        let a = sin(dLat / 2) * sin(dLat / 2) +
-                cos(latitude * .pi / 180) * cos(other.latitude * .pi / 180) *
-                sin(dLon / 2) * sin(dLon / 2)
-        let c = 2 * atan2(sqrt(a), sqrt(1 - a))
-        return Int(R * c)
+        let from = CLLocation(latitude: latitude, longitude: longitude)
+        let to = CLLocation(latitude: other.latitude, longitude: other.longitude)
+        let miles = from.distance(from: to) / 1609.344
+        return Int(miles.rounded())
     }
 }
 

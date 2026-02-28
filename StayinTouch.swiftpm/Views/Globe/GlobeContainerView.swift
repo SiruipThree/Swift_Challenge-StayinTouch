@@ -40,11 +40,7 @@ struct GlobeContainerView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(
-                    Capsule()
-                        .fill(.ultraThinMaterial)
-                        .overlay(Capsule().stroke(Color.stCardBorder, lineWidth: 0.5))
-                )
+                .glassEffect(.regular, in: Capsule())
                 .padding(.bottom, 12)
             }
         }
@@ -59,20 +55,13 @@ struct GlobeContainerView: View {
                 }
                 .foregroundStyle(Color.stAccent)
                 .padding(10)
-                .background(
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .overlay(Circle().stroke(Color.stAccent.opacity(0.3), lineWidth: 0.5))
-                )
+                .glassEffect(.regular.tint(Color.stAccent.opacity(0.3)), in: Circle())
             }
             .padding(12)
         }
     }
     
     private var formattedDistance: String {
-        if distanceMiles >= 1000 {
-            return String(format: "%,d miles", distanceMiles)
-        }
-        return "\(distanceMiles) miles"
+        "\(distanceMiles.formatted(.number.grouping(.automatic))) miles"
     }
 }

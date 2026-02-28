@@ -6,18 +6,18 @@ import AppleProductTypes
 let package = Package(
     name: "StayinTouch",
     platforms: [
-        .iOS("17.0")
+        .iOS("26.0")
     ],
     products: [
         .iOSApplication(
             name: "StayinTouch",
             targets: ["AppModule"],
-            bundleIdentifier: "com.stayintouch.app",
-            teamIdentifier: "",
+            bundleIdentifier: "com.threesiruipeng.stayintouch",
+            teamIdentifier: "C87GBAC2UJ",
             displayVersion: "1.0",
             bundleVersion: "1",
             appIcon: .placeholder(icon: .heart),
-            accentColor: .presetColor(.cyan),
+            accentColor: .asset("AccentColor"),
             supportedDeviceFamilies: [.pad, .phone],
             supportedInterfaceOrientations: [.portrait],
             appCategory: .socialNetworking
@@ -27,7 +27,12 @@ let package = Package(
         .executableTarget(
             name: "AppModule",
             path: ".",
-            exclude: ["Package.swift"],
+            exclude: [
+                "Package.swift",
+                ".swiftpm",
+                ".build",
+                "DerivedData"
+            ],
             resources: [
                 .process("Resources")
             ]

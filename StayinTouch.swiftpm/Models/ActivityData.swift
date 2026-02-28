@@ -7,7 +7,24 @@ struct ActivitySnapshot {
     let exerciseGoal: Int
     let standHours: Int
     let standGoal: Int
-    
+    /// Move-calorie values for the past 7 days, oldest → newest (today last).
+    let weeklyMoveTrend: [Int]
+
+    init(
+        moveCalories: Int, moveGoal: Int,
+        exerciseMinutes: Int, exerciseGoal: Int,
+        standHours: Int, standGoal: Int,
+        weeklyMoveTrend: [Int] = []
+    ) {
+        self.moveCalories     = moveCalories
+        self.moveGoal         = moveGoal
+        self.exerciseMinutes  = exerciseMinutes
+        self.exerciseGoal     = exerciseGoal
+        self.standHours       = standHours
+        self.standGoal        = standGoal
+        self.weeklyMoveTrend  = weeklyMoveTrend
+    }
+
     var moveProgress: Double { Double(moveCalories) / Double(moveGoal) }
     var exerciseProgress: Double { Double(exerciseMinutes) / Double(exerciseGoal) }
     var standProgress: Double { Double(standHours) / Double(standGoal) }

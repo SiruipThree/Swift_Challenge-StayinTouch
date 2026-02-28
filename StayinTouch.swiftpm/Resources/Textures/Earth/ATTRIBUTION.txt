@@ -1,0 +1,13 @@
+Earth textures in this folder were downloaded from:
+https://www.solarsystemscope.com/textures/
+
+Files:
+- 8k_earth_daymap.jpg
+- 8k_earth_nightmap.jpg
+
+License:
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+Attribution:
+"Textures by Solar System Scope" (https://www.solarsystemscope.com/textures/)

@@ -2,122 +2,130 @@ import SwiftUI
 
 struct RingsWidget: View {
     let activity: ActivitySnapshot?
-    let onSendEncouragement: (EncouragementOption) -> Void
-    
-    @State private var showOptions = false
-    @State private var sentConfirmation = false
-    @State private var selectedEncouragement: EncouragementOption?
-    
+
+    @State private var barProgress: [CGFloat] = [0, 0, 0]
+
+    // Unique key so onChange fires when switching contacts (all three values combined)
+    private var activityKey: String {
+        guard let a = activity else { return "nil" }
+        return "\(a.moveCalories)-\(a.exerciseMinutes)-\(a.standHours)"
+    }
+
+    private struct RowData {
+        let icon: String
+        let iconColor: Color
+        let label: String   // Apple ring name: Move / Exercise / Stand
+        let unit: String    // value unit: cal / min / hrs
+        let value: Int
+        let trackColor: Color
+        let fillColor: Color
+    }
+
+    private var rows: [RowData] {
+        guard let a = activity else { return [] }
+        return [
+            RowData(icon: "flame.fill",   iconColor: .stMoveRing,
+                    label: "Move",     unit: "cal", value: a.moveCalories,
+                    trackColor: .stMoveRing.opacity(0.18),     fillColor: .stMoveRing),
+            RowData(icon: "figure.run",    iconColor: .stExerciseRing,
+                    label: "Exercise", unit: "min", value: a.exerciseMinutes,
+                    trackColor: .stExerciseRing.opacity(0.18), fillColor: .stExerciseRing),
+            RowData(icon: "figure.stand", iconColor: .stStandRing,
+                    label: "Stand",    unit: "hrs", value: a.standHours,
+                    trackColor: .stStandRing.opacity(0.18),    fillColor: .stStandRing),
+        ]
+    }
+
+    private var targetProgress: [CGFloat] {
+        guard let a = activity else { return [0, 0, 0] }
+        return [
+            CGFloat(min(a.moveProgress,     1.0)),
+            CGFloat(min(a.exerciseProgress, 1.0)),
+            CGFloat(min(a.standProgress,    1.0)),
+        ]
+    }
+
     var body: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 10) {
+        GlassCard(fillsHeight: true) {
+            VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("Rings")
+                    Text("Daily Activity")
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundStyle(.stPrimaryText)
-                    
                     Spacer()
-                    
-                    GlassButton("Cheer", icon: "megaphone.fill") {
-                        withAnimation(.spring(response: 0.3)) { showOptions.toggle() }
-                    }
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.35))
                 }
-                
-                if let activity {
-                    HStack(spacing: 16) {
-                        ActivityRingView(
-                            move: activity.moveProgress,
-                            exercise: activity.exerciseProgress,
-                            stand: activity.standProgress,
-                            size: 70
-                        )
-                        
-                        VStack(alignment: .leading, spacing: 6) {
-                            ringRow(
-                                value: activity.moveCalories,
-                                goal: activity.moveGoal,
-                                unit: "cal",
-                                color: .stMoveRing
-                            )
-                            ringRow(
-                                value: activity.exerciseMinutes,
-                                goal: activity.exerciseGoal,
-                                unit: "min",
-                                color: .stExerciseRing
-                            )
-                            ringRow(
-                                value: activity.standHours,
-                                goal: activity.standGoal,
-                                unit: "hrs",
-                                color: .stStandRing
-                            )
+                .padding(.bottom, 10)
+
+                if activity != nil {
+                    VStack(spacing: 9) {
+                        ForEach(Array(rows.enumerated()), id: \.offset) { idx, row in
+                            ringBarRow(row: row, progress: barProgress[idx])
                         }
                     }
+                } else {
+                    Text("No data")
+                        .font(.caption)
+                        .foregroundStyle(.stSecondaryText)
                 }
-                
-                if showOptions {
-                    encouragementOptions
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+
+                Spacer(minLength: 0)
             }
         }
-        .overlay {
-            if sentConfirmation, let sel = selectedEncouragement {
-                SendConfirmationOverlay(
-                    emoji: sel.emoji,
-                    message: sel.message,
-                    isVisible: $sentConfirmation
-                )
+        .onAppear { animateBars() }
+        .onChange(of: activityKey) { _, _ in
+            barProgress = [0, 0, 0]
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+                animateBars()
             }
         }
     }
-    
-    private func ringRow(value: Int, goal: Int, unit: String, color: Color) -> some View {
-        HStack(spacing: 4) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text("\(value)")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.stPrimaryText)
-            Text("/ \(goal) \(unit)")
-                .font(.caption)
-                .foregroundStyle(.stSecondaryText)
-        }
-    }
-    
-    private var encouragementOptions: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Send encouragement")
-                .font(.caption)
-                .foregroundStyle(.stSecondaryText)
-            
-            ForEach(EncouragementOption.allCases) { option in
-                Button {
-                    selectedEncouragement = option
-                    onSendEncouragement(option)
-                    sentConfirmation = true
-                    withAnimation(.spring(response: 0.3)) { showOptions = false }
-                } label: {
-                    HStack(spacing: 8) {
-                        Text(option.emoji)
-                        Text(option.message)
-                            .font(.callout)
-                            .foregroundStyle(.stPrimaryText)
-                        Spacer()
-                        Image(systemName: "paperplane.fill")
-                            .font(.caption)
-                            .foregroundStyle(Color.stAccent)
-                    }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.05))
-                    )
+
+    @ViewBuilder
+    private func ringBarRow(row: RowData, progress: CGFloat) -> some View {
+        VStack(spacing: 5) {
+            // Icon + unit label  |  Spacer  |  value
+            HStack(spacing: 5) {
+                Image(systemName: row.icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(row.iconColor)
+
+                Text(row.label)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.stSecondaryText)
+
+                Spacer()
+
+                Text("\(row.value) \(row.unit)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.stPrimaryText)
+                    .lineLimit(1)
+            }
+
+            // Progress track + fill
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(row.trackColor)
+                        .frame(height: 7)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(row.fillColor)
+                        .frame(width: max(0, geo.size.width * progress), height: 7)
                 }
             }
+            .frame(height: 7)
         }
-        .padding(.top, 4)
+    }
+
+    private func animateBars() {
+        let targets = targetProgress
+        for i in 0..<3 {
+            withAnimation(.easeInOut(duration: 1.4).delay(Double(i) * 0.15)) {
+                barProgress[i] = targets[i]
+            }
+        }
     }
 }

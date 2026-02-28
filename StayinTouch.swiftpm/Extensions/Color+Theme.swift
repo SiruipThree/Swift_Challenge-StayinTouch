@@ -1,7 +1,9 @@
 import SwiftUI
 
 extension Color {
-    static let stBackground = Color(red: 0.05, green: 0.05, blue: 0.12)
+    static let stBackground = Color(red: 0.04, green: 0.05, blue: 0.14)
+    static let stBackgroundGradientTop = Color(red: 0.06, green: 0.08, blue: 0.20)
+    static let stBackgroundGradientBottom = Color(red: 0.02, green: 0.03, blue: 0.10)
     static let stCardBackground = Color.white.opacity(0.08)
     static let stCardBorder = Color.white.opacity(0.15)
     static let stAccent = Color(red: 0.35, green: 0.78, blue: 0.98) // Soft cyan
@@ -17,5 +19,8 @@ extension Color {
 
 extension ShapeStyle where Self == Color {
     static var stPrimaryText: Color { .white }
-    static var stSecondaryText: Color { .white.opacity(0.6) }
+    static var stSecondaryText: Color { .white.opacity(0.65) }
+    static var stAccent: Color { Color(red: 0.35, green: 0.78, blue: 0.98) }
+    static var stBackground: Color { Color(red: 0.04, green: 0.05, blue: 0.14) }
+    static var stCardBorder: Color { Color.white.opacity(0.15) }
 }

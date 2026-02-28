@@ -8,7 +8,7 @@ struct StayinTouchApp: App {
         WindowGroup {
             Group {
                 if viewModel.hasCompletedOnboarding {
-                    MainView(viewModel: viewModel)
+                    RootTabView(viewModel: viewModel)
                         .transition(.opacity)
                 } else {
                     OnboardingView {

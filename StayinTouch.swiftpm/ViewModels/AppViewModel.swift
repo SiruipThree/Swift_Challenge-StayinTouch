@@ -55,20 +55,21 @@ class AppViewModel {
     // MARK: - Contact Selection
     
     func selectContact(_ user: User) {
-        withAnimation(.easeInOut(duration: 0.4)) {
-            selectedContact = user
-        }
+        selectedContact = user
     }
     
     // MARK: - Mood
     
     func setMyMood(_ option: MoodOption) {
-        let entry = MoodEntry(
+        setMyMoodEntry(MoodEntry(
             emoji: option.rawValue,
             label: option.label,
             activity: option.activity,
             timestamp: Date()
-        )
+        ))
+    }
+
+    func setMyMoodEntry(_ entry: MoodEntry) {
         myMood = entry
         moods["me"] = entry
         showMoodPicker = false
@@ -99,18 +100,52 @@ class AppViewModel {
         showEncouragementPicker = false
     }
     
+    // MARK: - Post Notes (persisted for the session, keyed by post UUID string)
+
+    /// Notes the current user has sent on any post, keyed by post.id.uuidString.
+    var postNotes: [String: [String]] = [:]
+
+    func addNote(_ note: String, to post: TodayPost) {
+        var existing = postNotes[post.id.uuidString] ?? []
+        existing.append(note)
+        postNotes[post.id.uuidString] = existing
+    }
+
+    func notes(for post: TodayPost) -> [String] {
+        postNotes[post.id.uuidString] ?? []
+    }
+
+    // MARK: - My Today Posts
+
+    func addMyTodayPost(_ post: TodayPost) {
+        var posts = todayPosts["me"] ?? []
+        posts.insert(post, at: 0)
+        todayPosts["me"] = posts
+    }
+
+    func deleteMyTodayPost(_ post: TodayPost) {
+        var posts = todayPosts["me"] ?? []
+        posts.removeAll { $0.id == post.id }
+        todayPosts["me"] = posts
+    }
+
     // MARK: - Today Reactions
     
     func addReaction(_ reaction: ReactionOption, to post: TodayPost) {
         guard let userId = todayPosts.first(where: { $0.value.contains(where: { $0.id == post.id }) })?.key,
-              let index = todayPosts[userId]?.firstIndex(where: { $0.id == post.id }) else { return }
+              var posts = todayPosts[userId],
+              let index = posts.firstIndex(where: { $0.id == post.id }) else { return }
         
         let newReaction = Reaction(
             emoji: reaction.rawValue,
             fromUserId: currentUser.id,
+            fromUserEmoji: currentUser.avatarEmoji,
             timestamp: Date()
         )
-        todayPosts[userId]?[index].reactions.append(newReaction)
+        var updatedPost = posts[index]
+        updatedPost.reactions.append(newReaction)
+        posts[index] = updatedPost
+        todayPosts[userId] = posts
     }
     
     // MARK: - Nudge
@@ -143,4 +178,6 @@ class AppViewModel {
     var selectedActivity: ActivitySnapshot? { activity[selectedContact.id] }
     var selectedTodayPosts: [TodayPost] { todayPosts[selectedContact.id] ?? [] }
     var myTodayPosts: [TodayPost] { todayPosts["me"] ?? [] }
+    var myHealth: HealthSnapshot? { health["me"] }
+    var myActivity: ActivitySnapshot? { activity["me"] }
 }
