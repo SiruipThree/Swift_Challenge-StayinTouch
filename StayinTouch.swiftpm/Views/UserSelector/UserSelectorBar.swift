@@ -230,14 +230,27 @@ struct UserSelectorBar: View {
 
     private func statusRow(for contact: User, compact: Bool) -> some View {
         HStack(spacing: compact ? 5 : 6) {
-            Circle()
-                .fill(contact.isOnline ? Color.green : Color.gray)
-                .frame(width: compact ? 8 : 10, height: compact ? 8 : 10)
-            Text(contact.isOnline ? "Live" : "Offline")
-                .font(compact
-                      ? .system(size: 13, weight: .semibold)
-                      : .system(size: 16, weight: .semibold))
-                .foregroundStyle(contact.isOnline ? .green : .stSecondaryText)
+            if contact.isMemorial {
+                Image(systemName: "star.fill")
+                    .font(.system(size: compact ? 9 : 11, weight: .semibold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.84, blue: 0.40))
+                Text("Always with you")
+                    .font(compact
+                          ? .system(size: 13, weight: .semibold)
+                          : .system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.84, blue: 0.40))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            } else {
+                Circle()
+                    .fill(contact.isOnline ? Color.green : Color.gray)
+                    .frame(width: compact ? 8 : 10, height: compact ? 8 : 10)
+                Text(contact.isOnline ? "Live" : "Offline")
+                    .font(compact
+                          ? .system(size: 13, weight: .semibold)
+                          : .system(size: 16, weight: .semibold))
+                    .foregroundStyle(contact.isOnline ? .green : .stSecondaryText)
+            }
         }
     }
 

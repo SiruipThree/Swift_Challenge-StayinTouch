@@ -168,7 +168,12 @@ struct GlobeView: UIViewRepresentable {
         let autoRot = simd_quatf(angle: autoRotAngle, axis: SIMD3<Float>(0, 1, 0))
         earthNode.simdOrientation = simd_normalize(userRotation * base * autoRot)
         
-        if context.coordinator.shouldRebuildOverlay(for: overlaySignature(for: overlayScale)) {
+        let nudgeJustFired = showNudgeRipple && !context.coordinator.lastNudgeRipple
+        context.coordinator.lastNudgeRipple = showNudgeRipple
+
+        let hasActiveNudgeEffects = earthNode.childNodes.contains { $0.name == "nudgeEffect" }
+        if !hasActiveNudgeEffects,
+           context.coordinator.shouldRebuildOverlay(for: overlaySignature(for: overlayScale)) {
             rebuildOverlayNodes(
                 on: earthNode,
                 sceneView: sceneView,
@@ -177,10 +182,6 @@ struct GlobeView: UIViewRepresentable {
             )
         }
         updateMarkerVisibility(on: earthNode, in: sceneView)
-
-        // Detect leading edge of nudge ripple → fire one-shot 3-D beam effect.
-        let nudgeJustFired = showNudgeRipple && !context.coordinator.lastNudgeRipple
-        context.coordinator.lastNudgeRipple = showNudgeRipple
         if nudgeJustFired && context.coordinator.lastFullArcPositions.count >= 2 {
             triggerNudgeBeam(
                 on: earthNode,
@@ -945,6 +946,10 @@ struct GlobeView: UIViewRepresentable {
         let capturedPositions = positions
         let lastPos = positions.last!
 
+        for m in earthNode.childNodes where m.name == "contactMarker" {
+            m.renderingOrder = 100
+        }
+
         // ── Destination mega-burst (called at t = 3 s) ───────────────────────
         // 5 SCNTorus rings oriented tangent to the globe surface + central flash.
         func megaBurstAt(_ pos: SCNVector3) {
@@ -1101,11 +1106,11 @@ struct GlobeView: UIViewRepresentable {
             ]
             if isLastOrb {
                 seq.append(SCNAction.run { _ in megaBurstAt(lastPos) })
+                seq.append(SCNAction.fadeOut(duration: 0.35))
+            } else {
+                seq.append(SCNAction.fadeOut(duration: 0.14))
             }
-            seq.append(contentsOf: [
-                SCNAction.fadeOut(duration: 0.14),
-                SCNAction.removeFromParentNode()
-            ])
+            seq.append(SCNAction.removeFromParentNode())
             orb.runAction(SCNAction.sequence(seq))
         }
     }
@@ -1129,6 +1134,7 @@ struct GlobeView: UIViewRepresentable {
         
         let marker = SCNNode(geometry: plane)
         marker.name = "contactMarker"
+        marker.renderingOrder = 100
         let surface = SIMD3<Float>(position.x, position.y, position.z)
         let normal = simd_normalize(surface)
         let lifted = surface + normal * 0.035

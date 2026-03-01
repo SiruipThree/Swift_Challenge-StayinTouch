@@ -11,10 +11,11 @@ struct PeopleTabView: View {
         GridItem(.flexible(), spacing: 14)
     ]
 
-    /// Contacts sorted by daysApart descending (longest apart → first card).
+    /// Memorial contacts first, then sorted by daysApart descending.
     private var sortedContacts: [User] {
         viewModel.contacts.sorted {
-            $0.lastSeenDate < $1.lastSeenDate   // older lastSeen = further apart
+            if $0.isMemorial != $1.isMemorial { return $0.isMemorial }
+            return $0.lastSeenDate < $1.lastSeenDate
         }
     }
 
@@ -88,7 +89,7 @@ private struct PersonCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
 
-            // ── Top row: avatar + online dot + separation badge ─────────────
+            // ── Top row: avatar + status indicator + separation badge ────────
             HStack(alignment: .top) {
                 ZStack(alignment: .bottomTrailing) {
                     Text(contact.avatarEmoji)
@@ -96,7 +97,13 @@ private struct PersonCard: View {
                         .frame(width: 52, height: 52)
                         .background(Circle().fill(Color.white.opacity(0.08)))
 
-                    if contact.isOnline {
+                    if contact.isMemorial {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color(red: 1.0, green: 0.84, blue: 0.40))
+                            .frame(width: 15, height: 15)
+                            .background(Circle().fill(Color(red: 0.09, green: 0.09, blue: 0.15)))
+                    } else if contact.isOnline {
                         Circle()
                             .fill(Color(red: 0.22, green: 0.85, blue: 0.45))
                             .frame(width: 13, height: 13)
@@ -106,8 +113,11 @@ private struct PersonCard: View {
 
                 Spacer(minLength: 0)
 
-                // Separation time badge
-                separationBadge
+                if contact.isMemorial {
+                    memorialBadge
+                } else {
+                    separationBadge
+                }
             }
 
             // ── Name ────────────────────────────────────────────────────────
@@ -129,7 +139,19 @@ private struct PersonCard: View {
             }
 
             // ── Mood pill ───────────────────────────────────────────────────
-            if let mood {
+            if contact.isMemorial {
+                HStack(spacing: 5) {
+                    Text("🤍")
+                        .font(.system(size: 13))
+                    Text("Always with you")
+                        .font(.caption)
+                        .foregroundStyle(Color(red: 1.0, green: 0.84, blue: 0.40).opacity(0.85))
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(Color(red: 1.0, green: 0.84, blue: 0.40).opacity(0.08)))
+            } else if let mood {
                 HStack(spacing: 5) {
                     Text(mood.emoji)
                         .font(.system(size: 13))
@@ -146,6 +168,28 @@ private struct PersonCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    // MARK: - Memorial badge
+
+    private var memorialBadge: some View {
+        let color = Color(red: 1.0, green: 0.84, blue: 0.40)
+        return VStack(spacing: 2) {
+            Image(systemName: "star.fill")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(color)
+            Text("Always")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(color.opacity(0.12))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(color.opacity(0.28), lineWidth: 0.8))
+        )
     }
 
     // MARK: - Separation badge

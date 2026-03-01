@@ -47,6 +47,7 @@ private struct ECGShape: Shape {
 struct HeartWidget: View {
     let health: HealthSnapshot?
     let contactName: String
+    var isMemorial: Bool = false
 
     @State private var heartScale: CGFloat = 1.0
     @State private var waveProgress: CGFloat = 0
@@ -54,57 +55,64 @@ struct HeartWidget: View {
     var body: some View {
         GlassCard(fillsHeight: true) {
             VStack(alignment: .leading, spacing: 8) {
-                // Header row
                 HStack(spacing: 6) {
                     Image(systemName: "heart.fill")
-                        .foregroundStyle(Color(red: 1.0, green: 0.27, blue: 0.38))
+                        .foregroundStyle(isMemorial ? Color.gray.opacity(0.45) : Color(red: 1.0, green: 0.27, blue: 0.38))
                         .font(.title2)
                         .scaleEffect(heartScale)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Heart")
                             .font(.caption)
                             .foregroundStyle(.stSecondaryText)
-                        Text(health?.heartStatus.rawValue ?? "Unknown")
+                        Text(isMemorial ? "No signal" : (health?.heartStatus.rawValue ?? "Unknown"))
                             .font(.caption2)
                             .foregroundStyle(.stSecondaryText)
                     }
                     Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.35))
                 }
 
-                // BPM value
-                if let health {
+                if isMemorial {
+                    Text("-- BPM")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.stSecondaryText.opacity(0.5))
+                } else if let health {
                     Text("\(health.heartRate) BPM")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundStyle(.stPrimaryText)
                 }
 
-                // ECG waveform
-                ECGShape()
-                    .trim(from: 0, to: waveProgress)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 1.0, green: 0.27, blue: 0.38).opacity(0.35),
-                                Color(red: 1.0, green: 0.27, blue: 0.38).opacity(0.90),
-                                Color(red: 1.0, green: 0.27, blue: 0.38).opacity(0.55),
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
-                        style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
-                    )
-                    .frame(height: 24)
-                    .clipped()
+                if isMemorial {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.18))
+                        .frame(height: 1.8)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                } else {
+                    ECGShape()
+                        .trim(from: 0, to: waveProgress)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 1.0, green: 0.27, blue: 0.38).opacity(0.35),
+                                    Color(red: 1.0, green: 0.27, blue: 0.38).opacity(0.90),
+                                    Color(red: 1.0, green: 0.27, blue: 0.38).opacity(0.55),
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ),
+                            style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
+                        )
+                        .frame(height: 24)
+                        .clipped()
+                }
 
                 Spacer(minLength: 0)
             }
         }
-        // Re-run animation whenever the displayed contact changes
         .task(id: contactName) {
+            guard !isMemorial else { return }
             waveProgress = 0
             try? await Task.sleep(for: .milliseconds(80))
             withAnimation(.easeInOut(duration: 1.6)) {

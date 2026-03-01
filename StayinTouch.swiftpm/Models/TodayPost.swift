@@ -1,6 +1,6 @@
 import Foundation
 
-struct TodayPost: Identifiable {
+struct TodayPost: Identifiable, Equatable, Hashable {
     let id = UUID()
     let userId: String
     let photoName: String  // local asset name, ignored when imageData is set
@@ -11,6 +11,9 @@ struct TodayPost: Identifiable {
     var reactions: [Reaction]
     /// Pre-seeded text notes left by contacts (read-only, from mock data).
     var notes: [ContactNote] = []
+
+    static func == (lhs: TodayPost, rhs: TodayPost) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
 struct Reaction: Identifiable {

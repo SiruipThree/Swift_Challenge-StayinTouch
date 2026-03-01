@@ -17,6 +17,13 @@ struct MoodEditSheet: View {
         !vibeInput.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    private func dismissSheet() {
+        focusedField = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            isPresented = false
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
@@ -27,7 +34,7 @@ struct MoodEditSheet: View {
                     .foregroundStyle(.primary)
                 Spacer()
                 Button {
-                    isPresented = false
+                    dismissSheet()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title3)
@@ -89,7 +96,7 @@ struct MoodEditSheet: View {
             // ── Buttons ──────────────────────────────────────────────────────
             HStack(spacing: 14) {
                 Button {
-                    isPresented = false
+                    dismissSheet()
                 } label: {
                     Text("Cancel")
                         .font(.headline)
@@ -100,6 +107,7 @@ struct MoodEditSheet: View {
                 }
 
                 Button {
+                    focusedField = nil
                     let loc = locationInput.trimmingCharacters(in: .whitespaces)
                     let entry = MoodEntry(
                         emoji: emojiInput.trimmingCharacters(in: .whitespaces),

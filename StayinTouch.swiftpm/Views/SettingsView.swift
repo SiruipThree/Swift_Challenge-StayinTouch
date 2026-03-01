@@ -107,21 +107,24 @@ struct SettingsView: View {
                             .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
                         }
 
-                        // ── Story ─────────────────────────────────────────────
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("The Story")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.stPrimaryText)
-
-                            Text("As an international student, I've been away from home for four years. StayinTouch connects me with the people I love—without words, across distances.")
-                                .font(.subheadline)
-                                .foregroundStyle(.stSecondaryText)
-                                .lineSpacing(4)
+                        // ── Replay Onboarding ───────────────────────────────
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                viewModel.hasCompletedOnboarding = false
+                            }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Replay Onboarding")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundStyle(.stAccent)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
                         }
-                        .padding(16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
 
                         Spacer(minLength: 100)
                     }

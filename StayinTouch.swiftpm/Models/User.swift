@@ -21,6 +21,7 @@ struct User: Identifiable, Equatable {
     let locationName: String
     let lastSeenDate: Date
     let isOnline: Bool
+    var isMemorial: Bool = false
     
     var daysApart: Int {
         Calendar.current.dateComponents([.day], from: lastSeenDate, to: .now).day ?? 0

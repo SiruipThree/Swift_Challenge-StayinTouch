@@ -161,8 +161,8 @@ class AppViewModel {
         withAnimation(.easeOut(duration: 1.5)) {
             activeNudgeAnimation = true
         }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) { [weak self] in
             withAnimation { self?.activeNudgeAnimation = false }
         }
     }

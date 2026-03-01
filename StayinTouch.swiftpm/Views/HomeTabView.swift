@@ -76,6 +76,7 @@ struct HomeTabView: View {
     /// Cleared whenever the user updates their mood (old reactions no longer apply).
     @State private var myMoodReactions: [MoodReaction] = [
         MoodReaction(name: "Mom",     emoji: "❤️", avatar: "👩‍🦱"),
+        MoodReaction(name: "Dad",     emoji: "❤️", avatar: "👨‍🦳"),
         MoodReaction(name: "Hayden",  emoji: "❤️", avatar: "👨‍💻"),
         MoodReaction(name: "Tommy",   emoji: "💪", avatar: "👨‍🦱"),
         MoodReaction(name: "Grandma", emoji: "🫂", avatar: "👵"),
@@ -94,6 +95,8 @@ struct HomeTabView: View {
     }
     /// Whether the "reactions received" sheet is shown.
     @State private var showMyMoodReactions = false
+    /// Which emoji group is currently expanded in the reactions sheet (nil = all collapsed).
+    @State private var expandedReactionEmoji: String? = nil
     /// Controls the My Today edit sheet.
     @State private var showTodayEditor = false
     /// Frame of the visible HeartWidget — used for the transparent tap overlay.
@@ -122,7 +125,8 @@ struct HomeTabView: View {
                 // Fixed background layer: space + earth stay in place while widgets scroll above.
                 GlobeView(
                     fromCoordinate: viewModel.currentUser.location,
-                    toCoordinate: hasSelectedContact ? viewModel.selectedContact.location : nil,
+                    toCoordinate: (hasSelectedContact && !viewModel.selectedContact.isMemorial)
+                        ? viewModel.selectedContact.location : nil,
                     distanceMiles: viewModel.distanceMiles,
                     daysApart: viewModel.selectedContact.daysApart,
                     showNudgeRipple: viewModel.activeNudgeAnimation,
@@ -133,7 +137,7 @@ struct HomeTabView: View {
                     routeRevealProgress: routeRevealProgress,
                     contactAvatar: viewModel.selectedContact.avatarEmoji,
                     showsOverview: !hasSelectedContact,
-                    overviewContacts: hasSelectedContact ? [] : viewModel.contacts
+                    overviewContacts: hasSelectedContact ? [] : viewModel.contacts.filter { !$0.isMemorial }
                 )
                 .ignoresSafeArea()
                 
@@ -154,9 +158,11 @@ struct HomeTabView: View {
                             myAvatarEmoji: viewModel.currentUser.avatarEmoji,
                             onSelect: { selectContactAndReplayRoute($0) },
                             onDeselect: {
+                                resetGestureFlags()
                                 withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
                                     hasSelectedContact = false
                                 }
+                                resetGlobeViewport(for: nil, animated: true)
                             },
                             onExpansionChanged: { expanded in
                                 isContactSelectorExpanded = expanded
@@ -164,12 +170,13 @@ struct HomeTabView: View {
                         )
                         
                         if hasSelectedContact {
+                            let isMemorial = viewModel.selectedContact.isMemorial
                             HStack(spacing: 14) {
                                 MoodWidget(
                                     mood: viewModel.selectedMood,
                                     contactName: viewModel.selectedContact.name,
                                     isEditable: false,
-                                    reactionEmoji: currentContactReaction,
+                                    reactionEmoji: isMemorial ? nil : currentContactReaction,
                                     onSetMood: { _ in }
                                 )
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -182,8 +189,9 @@ struct HomeTabView: View {
                                 })
 
                                 HeartWidget(
-                                    health: viewModel.selectedHealth,
-                                    contactName: viewModel.selectedContact.name
+                                    health: isMemorial ? nil : viewModel.selectedHealth,
+                                    contactName: viewModel.selectedContact.name,
+                                    isMemorial: isMemorial
                                 )
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .background(GeometryReader { geo in
@@ -239,13 +247,23 @@ struct HomeTabView: View {
                                 ZStack(alignment: .topLeading) {
                                     // Capsule: left-aligned, offset down 20 from the shared base.
                                     HStack(spacing: 6) {
-                                        Image(systemName: "location.fill")
-                                            .font(.caption2)
-                                            .foregroundStyle(Color.stAccent)
-                                        Text("\(formattedDistance) • \(viewModel.selectedContact.daysApart) days apart")
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                            .foregroundStyle(.white.opacity(0.92))
+                                        if viewModel.selectedContact.isMemorial {
+                                            Image(systemName: "star.fill")
+                                                .font(.caption2)
+                                                .foregroundStyle(Color(red: 1.0, green: 0.84, blue: 0.40))
+                                            Text("Always with you")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                                .foregroundStyle(Color(red: 1.0, green: 0.84, blue: 0.40).opacity(0.92))
+                                        } else {
+                                            Image(systemName: "location.fill")
+                                                .font(.caption2)
+                                                .foregroundStyle(Color.stAccent)
+                                            Text("\(formattedDistance) • \(viewModel.selectedContact.daysApart) days apart")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                                .foregroundStyle(.white.opacity(0.92))
+                                        }
                                     }
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 10)
@@ -361,7 +379,7 @@ struct HomeTabView: View {
                     .zIndex(20)
 
                 // Nudge button rendered above globeInteractionLayer (zIndex 10) so taps reach it.
-                if hasSelectedContact {
+                if hasSelectedContact && !viewModel.selectedContact.isMemorial {
                     mapNudgeControlButton {
                         viewModel.sendNudge()
                     }
@@ -491,7 +509,8 @@ struct HomeTabView: View {
                 // A small hit area over the ❤️ reaction icon on the right-center
                 // of the contact MoodWidget — same pattern as the edit button.
                 if hasSelectedContact && !isContactSelectorExpanded
-                    && contactMoodWidgetFrame != .zero {
+                    && contactMoodWidgetFrame != .zero
+                    && !viewModel.selectedContact.isMemorial {
                     Button { showReactionPicker = true } label: {
                         Color.white.opacity(0.001)
                             .frame(width: 52, height: 52)
@@ -594,6 +613,7 @@ struct HomeTabView: View {
             }
             .onChange(of: homeRetapID) { _, _ in
                 guard hasSelectedContact else { return }
+                resetGestureFlags()
                 withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
                     hasSelectedContact = false
                 }
@@ -602,10 +622,7 @@ struct HomeTabView: View {
                 routeRevealProgress = 1
             }
             .onDisappear {
-                isGlobePinching = false
-                isGlobeDragging = false
-                isGlobeTwisting = false
-                lastDragStartLocation = .zero
+                resetGestureFlags()
             }
             // Auto-rotate globe in Earth BODY space (+Y axis of the globe itself).
             // Because the rotation is applied as `base * autoRot` (right-multiply in
@@ -654,7 +671,16 @@ struct HomeTabView: View {
         }
     }
     
+    private func resetGestureFlags() {
+        isGlobeDragging = false
+        isGlobePinching = false
+        isGlobeTwisting = false
+        lastDragStartLocation = .zero
+        pinchStartZoom = nil
+    }
+
     private func selectContactAndReplayRoute(_ contact: User) {
+        resetGestureFlags()
         hasSelectedContact = true
         let isSameContact = contact.id == viewModel.selectedContact.id
         
@@ -716,11 +742,11 @@ struct HomeTabView: View {
     private func globeRotateGesture(in size: CGSize, zone: CGRect) -> some Gesture {
         DragGesture(minimumDistance: 1, coordinateSpace: .named("home_root"))
             .onChanged { value in
-                // Detect a genuinely new gesture by comparing startLocation.
-                // If the touch-down point differs from the last recorded one,
-                // this is a fresh gesture — reset any stuck isGlobeDragging state
-                // that can occur when a previous gesture was interrupted by a tab
-                // switch or system alert without firing onEnded.
+                // Yield to two-finger gestures (pinch / twist). When both fingers
+                // land, SwiftUI fires drag simultaneously; ignore the drag so it
+                // doesn't conflict with the rotation / magnification.
+                if isGlobePinching || isGlobeTwisting { return }
+
                 if value.startLocation != lastDragStartLocation {
                     lastDragStartLocation = value.startLocation
                     isGlobeDragging = false
@@ -730,17 +756,11 @@ struct HomeTabView: View {
                     guard zone.contains(value.startLocation) else { return }
                     guard !isInsideControlColumn(value.startLocation, in: size) else { return }
                     isGlobeDragging = true
-                    // Snapshot the current rotation once at gesture start.
-                    // All subsequent events compute the full rotation from total
-                    // translation × this snapshot — no stale-delta issues.
                     dragStartUserRotation = persistentUserRotation
                 }
 
                 guard isGlobeDragging else { return }
 
-                // Use TOTAL translation from gesture origin (not delta) so the
-                // final orientation is always deterministic regardless of SwiftUI
-                // render-cycle batching.
                 let dx = Float(value.translation.width)
                 let dy = Float(value.translation.height)
 
@@ -760,14 +780,15 @@ struct HomeTabView: View {
             .onChanged { value in
                 if !isGlobePinching {
                     isGlobePinching = true
+                    isGlobeDragging = false
                 }
                 if pinchStartZoom == nil {
                     pinchStartZoom = persistentGlobeZoom
                 }
                 let base = pinchStartZoom ?? persistentGlobeZoom
-                let targetZoom = clampedZoom(base * value.magnification)
-                
-                // Log-domain smoothing keeps the perceived zoom speed consistent.
+                let safeMagnification = min(max(value.magnification, 0.25), 4.0)
+                let targetZoom = clampedZoom(base * safeMagnification)
+
                 let currentLog = log(max(persistentGlobeZoom, minGlobeZoom))
                 let targetLog = log(max(targetZoom, minGlobeZoom))
                 let nextLog = currentLog + (targetLog - currentLog) * 0.26
@@ -776,13 +797,12 @@ struct HomeTabView: View {
             .onEnded { value in
                 let base = pinchStartZoom ?? persistentGlobeZoom
                 pinchStartZoom = nil
-                let next = clampedZoom(base * value.magnification)
+                let safeMagnification = min(max(value.magnification, 0.25), 4.0)
+                let next = clampedZoom(base * safeMagnification)
                 withAnimation(.interactiveSpring(response: 0.24, dampingFraction: 0.9)) {
                     persistentGlobeZoom = next
                 }
-                if isGlobePinching {
-                    isGlobePinching = false
-                }
+                isGlobePinching = false
             }
     }
     
@@ -791,10 +811,9 @@ struct HomeTabView: View {
             .onChanged { value in
                 if !isGlobeTwisting {
                     isGlobeTwisting = true
+                    isGlobeDragging = false
                     twistStartUserRotation = persistentUserRotation
                 }
-                // Rotate around the camera's Z axis (axis pointing out of screen).
-                // Negate so the globe surface moves with the fingers (natural direction).
                 let angle = Float(-value.radians)
                 let rotZ = simd_quatf(angle: angle, axis: SIMD3<Float>(0, 0, 1))
                 persistentUserRotation = simd_normalize(rotZ * twistStartUserRotation)
@@ -1032,7 +1051,7 @@ struct HomeTabView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(Array(groupedMoodReactions.enumerated()), id: \.offset) { idx, group in
-                        reactionGroupRow(group)
+                        reactionGroupSection(group)
 
                         if idx < groupedMoodReactions.count - 1 {
                             Divider()
@@ -1044,56 +1063,95 @@ struct HomeTabView: View {
 
             Spacer(minLength: 0)
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
         .presentationBackground(.ultraThinMaterial)
         .presentationCornerRadius(28)
     }
 
-    /// Single grouped row: overlapping avatar circles + names + reaction emoji.
+    /// A grouped reaction section: summary row + expandable member list when > 3 people.
     @ViewBuilder
-    private func reactionGroupRow(_ group: (emoji: String, reactions: [MoodReaction])) -> some View {
-        HStack(spacing: 14) {
+    private func reactionGroupSection(_ group: (emoji: String, reactions: [MoodReaction])) -> some View {
+        let isExpandable = group.reactions.count > 2
+        let isExpanded = expandedReactionEmoji == group.emoji
 
-            // Overlapping avatar circles
-            let avatars = group.reactions.prefix(3)
-            ZStack(alignment: .leading) {
-                ForEach(Array(avatars.enumerated()), id: \.offset) { idx, r in
-                    Circle()
-                        .fill(Color.white.opacity(0.10))
-                        .frame(width: 42, height: 42)
-                        .overlay(
-                            Text(r.avatar)
-                                .font(.system(size: 22))
-                        )
-                        .overlay(Circle().stroke(Color(red: 0.09, green: 0.09, blue: 0.15), lineWidth: 2))
-                        .offset(x: CGFloat(idx) * 24)
+        VStack(spacing: 0) {
+            // Summary row (same visual as before)
+            HStack(spacing: 14) {
+                let avatars = group.reactions.prefix(3)
+                ZStack(alignment: .leading) {
+                    ForEach(Array(avatars.enumerated()), id: \.offset) { idx, r in
+                        Circle()
+                            .fill(Color.white.opacity(0.10))
+                            .frame(width: 42, height: 42)
+                            .overlay(
+                                Text(r.avatar)
+                                    .font(.system(size: 22))
+                            )
+                            .overlay(Circle().stroke(Color(red: 0.09, green: 0.09, blue: 0.15), lineWidth: 2))
+                            .offset(x: CGFloat(idx) * 24)
+                    }
+                }
+                .frame(
+                    width: avatars.count > 1
+                        ? 42 + 24 * CGFloat(avatars.count - 1)
+                        : 42,
+                    height: 42
+                )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(formattedNames(group.reactions))
+                        .font(.body).fontWeight(.medium)
+                        .foregroundStyle(.primary)
+                    Text("reacted to your mood")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if isExpandable {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(group.emoji)
+                    .font(.system(size: 28))
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard isExpandable else { return }
+                withAnimation(.spring(response: 0.30, dampingFraction: 0.82)) {
+                    expandedReactionEmoji = isExpanded ? nil : group.emoji
                 }
             }
-            .frame(
-                width: avatars.count > 1
-                    ? 42 + 24 * CGFloat(avatars.count - 1)
-                    : 42,
-                height: 42
-            )
 
-            // Names + subtitle
-            VStack(alignment: .leading, spacing: 2) {
-                Text(formattedNames(group.reactions))
-                    .font(.body).fontWeight(.medium)
-                    .foregroundStyle(.primary)
-                Text("reacted to your mood")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            // Expanded member list
+            if isExpanded {
+                VStack(spacing: 0) {
+                    ForEach(Array(group.reactions.enumerated()), id: \.offset) { idx, r in
+                        HStack(spacing: 12) {
+                            Circle()
+                                .fill(Color.white.opacity(0.08))
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Text(r.avatar)
+                                        .font(.system(size: 17))
+                                )
+                            Text(r.name)
+                                .font(.subheadline).fontWeight(.medium)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 38)
+                        .padding(.vertical, 8)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-
-            Spacer()
-
-            // Reaction emoji badge
-            Text(group.emoji)
-                .font(.system(size: 28))
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 14)
     }
 
     private func formattedNames(_ reactions: [MoodReaction]) -> String {

@@ -123,6 +123,7 @@ struct TodayWidget: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: 100, height: 80)
+                    .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             } else {
                 RoundedRectangle(cornerRadius: 10)
@@ -182,15 +183,22 @@ struct TodayWidget: View {
 
 /// Displays reactions grouped by emoji with staggered spring entrance animation.
 /// Used only on "my" own Today posts — shows who reacted and how many.
+/// Tap any pill to see the full list of people who sent that reaction.
 struct GroupedReactionsView: View {
 
     let reactions: [Reaction]
 
     struct Group: Identifiable {
-        let id: String          // the emoji itself
+        let id: String
         let emoji: String
         let count: Int
-        let avatars: [String]   // up to 3 fromUserEmoji values
+        let avatars: [String]
+    }
+
+    struct DetailGroup: Identifiable {
+        let id: String
+        let emoji: String
+        let members: [(avatar: String, userId: String)]
     }
 
     private var groups: [Group] {
@@ -202,7 +210,17 @@ struct GroupedReactionsView: View {
         }.sorted { $0.count > $1.count }
     }
 
+    private func detailGroup(for emoji: String) -> DetailGroup {
+        let rs = reactions.filter { $0.emoji == emoji }
+        return DetailGroup(
+            id: emoji,
+            emoji: emoji,
+            members: rs.map { (avatar: $0.fromUserEmoji, userId: $0.fromUserId) }
+        )
+    }
+
     @State private var appeared = false
+    @State private var selectedDetailGroup: DetailGroup? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -212,21 +230,27 @@ struct GroupedReactionsView: View {
 
             HStack(spacing: 10) {
                 ForEach(Array(groups.enumerated()), id: \.element.id) { idx, group in
-                    reactionPill(group)
-                        .scaleEffect(appeared ? 1.0 : 0.4)
-                        .opacity(appeared ? 1.0 : 0.0)
-                        .animation(
-                            .spring(response: 0.45, dampingFraction: 0.65)
-                            .delay(Double(idx) * 0.08),
-                            value: appeared
-                        )
+                    Button {
+                        selectedDetailGroup = detailGroup(for: group.emoji)
+                    } label: {
+                        reactionPill(group)
+                    }
+                    .buttonStyle(.plain)
+                    .scaleEffect(appeared ? 1.0 : 0.4)
+                    .opacity(appeared ? 1.0 : 0.0)
+                    .animation(
+                        .spring(response: 0.45, dampingFraction: 0.65)
+                        .delay(Double(idx) * 0.08),
+                        value: appeared
+                    )
                 }
                 Spacer()
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            appeared = true
+        .onAppear { appeared = true }
+        .sheet(item: $selectedDetailGroup) { detail in
+            reactionDetailSheet(detail)
         }
     }
 
@@ -241,7 +265,6 @@ struct GroupedReactionsView: View {
                     .foregroundStyle(.stSecondaryText)
             }
 
-            // Stacked mini avatar circles (up to 3)
             HStack(spacing: -6) {
                 ForEach(group.avatars.indices, id: \.self) { i in
                     Text(group.avatars[i])
@@ -259,6 +282,79 @@ struct GroupedReactionsView: View {
                 .fill(Color.white.opacity(0.08))
                 .overlay(Capsule().stroke(Color.stCardBorder, lineWidth: 0.5))
         )
+    }
+
+    @ViewBuilder
+    private func reactionDetailSheet(_ detail: DetailGroup) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(detail.emoji)
+                    .font(.largeTitle)
+                Text("Reactions")
+                    .font(.title2).fontWeight(.bold)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text("\(detail.members.count) people")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 28)
+            .padding(.bottom, 16)
+
+            Divider().padding(.horizontal, 24)
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(Array(detail.members.enumerated()), id: \.offset) { idx, member in
+                        HStack(spacing: 14) {
+                            Circle()
+                                .fill(Color.white.opacity(0.10))
+                                .frame(width: 42, height: 42)
+                                .overlay(
+                                    Text(member.avatar)
+                                        .font(.system(size: 22))
+                                )
+                            Text(displayName(for: member.userId))
+                                .font(.body).fontWeight(.medium)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+
+                        if idx < detail.members.count - 1 {
+                            Divider().padding(.leading, 80)
+                        }
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .presentationDetents([.medium])
+        .presentationBackground(.ultraThinMaterial)
+        .presentationCornerRadius(28)
+    }
+
+    private func displayName(for userId: String) -> String {
+        switch userId {
+        case "mom":     return "Mom"
+        case "dad":     return "Dad"
+        case "hayden":  return "Hayden"
+        case "tommy":   return "Tommy"
+        case "eric":    return "Eric"
+        case "mengxi":  return "Mengxi"
+        case "grandma": return "Grandma"
+        case "grandpa":     return "Grandpa"
+        case "grandmaLong": return "Grandma Long"
+        case "songshu": return "Songshu"
+        case "gege":    return "Brother"
+        case "jiejie":  return "Sister"
+        case "mg":      return "Mg"
+        case "me":      return "Me"
+        default:        return userId
+        }
     }
 }
 
@@ -553,8 +649,8 @@ struct TodayDetailView: View {
             Image(uiImage: uiImage)
                 .resizable()
                 .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .frame(height: 260)
+                .frame(maxWidth: .infinity, maxHeight: 260)
+                .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 20))
         } else {
             ZStack {
